@@ -92,6 +92,7 @@ bool TestContext() {
     info.machine, UIDevice.currentDevice.systemVersion, (size_t)vm_page_size,
     device ? device.name : @"no disponible"]];
   [self append:@"Metal: pendiente de completar un comando GPU.\nLas pruebas de memoria y contexto se ejecutan por separado.\n"];
+  [self append:@"Diagnóstico v0.2: reserva fija, reserva dinámica y aliases.\n"];
 
   NSArray<NSString *> *names = @[@"Probar reserva virtual", @"Probar contexto del runtime", @"Copiar informe"];
   NSArray<NSString *> *selectors = @[@"testMemory", @"testContext", @"copyReport"];
@@ -123,7 +124,72 @@ bool TestContext() {
     kern_return_t released = vm_deallocate(mach_task_self(), address, size);
     [self append:[NSString stringWithFormat:@"Liberación: %s (%d).\n", mach_error_string(released), released]];
   }
-  [self append:@"Esta prueba no valida alias, acceso a memoria Wii ni el juego.\n"];
+  [self append:@"La reserva fija anterior no valida el juego.\n"];
+
+  // Let iPadOS choose the base instead of assuming the macOS 512 GiB address.
+  // Only one backing page is touched; the 4 GiB allocation is virtual.
+  vm_address_t dynamicBase = 0;
+  result = vm_allocate(mach_task_self(), &dynamicBase, size, VM_FLAGS_ANYWHERE);
+  [self append:[NSString stringWithFormat:@"Reserva dinámica 4 GiB: %s (%d), base 0x%llx.\n",
+    mach_error_string(result), result, (unsigned long long)dynamicBase]];
+  if (result != KERN_SUCCESS) {
+    [self append:@"No se ejecutaron aliases dentro del espacio de 4 GiB.\n"];
+    return;
+  }
+  result = vm_protect(mach_task_self(), dynamicBase, size, FALSE, VM_PROT_NONE);
+  [self append:[NSString stringWithFormat:@"Protección de la reserva (sin acceso): %s (%d).\n",
+    mach_error_string(result), result]];
+  if (result != KERN_SUCCESS) {
+    vm_deallocate(mach_task_self(), dynamicBase, size);
+    return;
+  }
+
+  vm_address_t backing = 0;
+  const vm_size_t pageSize = (vm_size_t)vm_page_size;
+  result = vm_allocate(mach_task_self(), &backing, pageSize, VM_FLAGS_ANYWHERE);
+  [self append:[NSString stringWithFormat:@"Backing de una página: %s (%d).\n",
+    mach_error_string(result), result]];
+  if (result == KERN_SUCCESS) {
+    [self append:@"Iniciando aliases en offsets Wii 0x80000000 y 0xc0000000.\n"];
+    vm_address_t alias1 = dynamicBase + 0x80000000ull;
+    vm_address_t alias2 = dynamicBase + 0xc0000000ull;
+    const vm_address_t wanted1 = alias1, wanted2 = alias2;
+    vm_prot_t current1 = VM_PROT_NONE, maximum1 = VM_PROT_NONE;
+    vm_prot_t current2 = VM_PROT_NONE, maximum2 = VM_PROT_NONE;
+    // OVERWRITE is restricted to pages inside our own newly reserved region.
+    kern_return_t remap1 = vm_remap(mach_task_self(), &alias1, pageSize, 0,
+      VM_FLAGS_FIXED | VM_FLAGS_OVERWRITE, mach_task_self(), backing,
+      FALSE, &current1, &maximum1, VM_INHERIT_NONE);
+    kern_return_t remap2 = vm_remap(mach_task_self(), &alias2, pageSize, 0,
+      VM_FLAGS_FIXED | VM_FLAGS_OVERWRITE, mach_task_self(), backing,
+      FALSE, &current2, &maximum2, VM_INHERIT_NONE);
+    [self append:[NSString stringWithFormat:@"vm_remap alias 1: %s (%d).\nvm_remap alias 2: %s (%d).\n",
+      mach_error_string(remap1), remap1, mach_error_string(remap2), remap2]];
+    const vm_prot_t needed = VM_PROT_READ | VM_PROT_WRITE;
+    if (remap1 == KERN_SUCCESS && remap2 == KERN_SUCCESS &&
+        alias1 == wanted1 && alias2 == wanted2 &&
+        (current1 & needed) == needed && (current2 & needed) == needed) {
+      [self append:@"Comprobando lecturas y escrituras compartidas de una página.\n"];
+      auto *host = reinterpret_cast<volatile uint32_t*>(backing);
+      auto *first = reinterpret_cast<volatile uint32_t*>(alias1);
+      auto *second = reinterpret_cast<volatile uint32_t*>(alias2);
+      *host = 0x13579bdfu;
+      bool shared = *first == 0x13579bdfu && *second == 0x13579bdfu;
+      *second = 0x2468ace0u;
+      shared &= *host == 0x2468ace0u && *first == 0x2468ace0u;
+      [self append:shared ? @"Aliases dinámicos: PASS (lectura y escritura compartidas).\n"
+                          : @"Aliases dinámicos: FAIL (contenido no compartido).\n"];
+    } else {
+      [self append:@"Aliases dinámicos: FAIL o permisos incompatibles; no se accedió a las vistas.\n"];
+    }
+    kern_return_t freedBacking = vm_deallocate(mach_task_self(), backing, pageSize);
+    [self append:[NSString stringWithFormat:@"Liberación backing: %s (%d).\n",
+      mach_error_string(freedBacking), freedBacking]];
+  }
+  kern_return_t freedDynamic = vm_deallocate(mach_task_self(), dynamicBase, size);
+  [self append:[NSString stringWithFormat:@"Liberación dinámica: %s (%d).\n",
+    mach_error_string(freedDynamic), freedDynamic]];
+  [self append:@"Esta prueba de una página no valida todas las regiones Wii ni el juego.\n"];
 }
 - (void)testContext {
   [self append:@"Iniciando cambios de contexto. Si la app se cierra, informar ese resultado.\n"];
