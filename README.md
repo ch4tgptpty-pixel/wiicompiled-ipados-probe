@@ -5,8 +5,8 @@ Estado: compilado correctamente con Xcode 26.6 y SDK iOS 26.5 en GitHub Actions.
 **Todavía no probado en el iPad. No es un port jugable.**
 
 Repositorio: https://github.com/ch4tgptpty-pixel/wiicompiled-ipados-probe
-Build correcto: https://github.com/ch4tgptpty-pixel/wiicompiled-ipados-probe/actions/runs/38320960955
-Artefacto: https://github.com/ch4tgptpty-pixel/wiicompiled-ipados-probe/actions/runs/38320960955/artifacts/11778228675
+Build v0.2 correcto: https://github.com/ch4tgptpty-pixel/wiicompiled-ipados-probe/actions/runs/38321564083
+Artefacto v0.2: https://github.com/ch4tgptpty-pixel/wiicompiled-ipados-probe/actions/runs/38321564083/artifacts/11778423006
 
 Este repositorio pequeño permite crear una app de diagnóstico con GitHub Actions
 sin un Mac propio, sin archivos del juego y sin certificados de firma en GitHub.
@@ -19,7 +19,10 @@ contiene fuentes y un workflow, no un IPA.
   No prueba Aurora, Dawn, shaders de Wii ni rendimiento del juego.
 - Reserva virtual: intenta reservar y liberar 4 GiB en la dirección de 512 GiB usada
   por el runtime actual. No escribe 4 GiB de RAM, no sobrescribe mappings existentes,
-  no valida alias de memoria ni el backend completo. Un fallo es un resultado útil.
+  La v0.2 también intenta una reserva dinámica de 4 GiB y, si funciona,
+  crea aliases de una página en offsets 0x80000000 y 0xc0000000 y comprueba
+  lectura y escritura compartidas. No valida el backend completo ni el juego.
+  Un fallo es un resultado útil.
 - Contexto: enlaza el `host_context.cpp` y `co_switch.S` originales y realiza dos
   cambios de contexto. La prueba es manual y podría cerrar la app si el backend falla.
 - Auditoría de compilación: verifica la sintaxis de tres fuentes originales con el
