@@ -20,7 +20,8 @@ target_include_directories(WiiCompiledProbe PRIVATE "${UPSTREAM_DIR}/runtime/inc
 target_compile_features(WiiCompiledProbe PRIVATE cxx_std_17)
 set_source_files_properties(main.mm PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
 target_link_libraries(WiiCompiledProbe PRIVATE
-  "-framework UIKit" "-framework Foundation" "-framework Metal" "-framework MetalKit")
+  "-framework UIKit" "-framework Foundation" "-framework Metal" "-framework MetalKit"
+  "-framework CoreGraphics")
 set_target_properties(WiiCompiledProbe PROPERTIES
   OBJCXX_STANDARD 17
   OBJCXX_STANDARD_REQUIRED YES
