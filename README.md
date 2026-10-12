@@ -1,12 +1,16 @@
 # Prueba desechable de WiiCompiled para iPadOS
 
 Objetivo: iPad de novena generación, iPadOS 26.2.1; el usuario firma con FlareStore.
-Estado: fuentes preparadas y comprobaciones estructurales realizadas en Windows.
-**Todavía no compilado con Xcode ni probado en el iPad. No es un port jugable.**
+Estado: compilado correctamente con Xcode 26.6 y SDK iOS 26.5 en GitHub Actions.
+**Todavía no probado en el iPad. No es un port jugable.**
+
+Repositorio: https://github.com/ch4tgptpty-pixel/wiicompiled-ipados-probe
+Build correcto: https://github.com/ch4tgptpty-pixel/wiicompiled-ipados-probe/actions/runs/38320960955
+Artefacto: https://github.com/ch4tgptpty-pixel/wiicompiled-ipados-probe/actions/runs/38320960955/artifacts/11778228675
 
 Este repositorio pequeño permite crear una app de diagnóstico con GitHub Actions
 sin un Mac propio, sin archivos del juego y sin certificados de firma en GitHub.
-El resultado previsto es `WiiCompiledProbe-unsigned.ipa`; el ZIP entregado aquí
+El resultado generado es `WiiCompiledProbe-unsigned.ipa`; el ZIP de fuentes entregado aquí
 contiene fuentes y un workflow, no un IPA.
 
 ## Qué comprueba
@@ -66,8 +70,9 @@ Firmar apps ilimitadas no confirma acceso a un espacio virtual ampliado.
   adaptar el arranque y los archivos al sandbox y probar los gráficos reales.
 - Para integrar el juego posteriormente se necesitan los datos y fuentes generados
   a partir de la copia propia PAL RMCP01. No se incluye ni solicita subir esos datos.
-- La conexión de GitHub se verificó. La compilación remota sigue pendiente:
-  todavía falta crear el repositorio separado y publicar este diagnóstico.
+- El repositorio separado se creó y el diagnóstico compiló correctamente.
+  La auditoría confirmó que `mach_vm.h` no está soportado en el SDK de iOS
+  y que `CoreAudio/CoreAudio.h` del backend macOS no está disponible.
 - El SDK instalado en el runner determina qué versiones de iPadOS puede compilar;
   el deployment target del diagnóstico es iOS 16.0, compatible como mínimo solicitado.
 
@@ -76,3 +81,4 @@ Firmar apps ilimitadas no confirma acceso a un espacio virtual ampliado.
 El diagnóstico se distribuye bajo GPL-3.0, por su integración con fuentes GPL-3.0
 de WiiCompiled. Véase LICENSE. Los frameworks de Apple son dependencias del SDK.
 Proyecto original: https://github.com/patchzyy/Wiicompiled
+
