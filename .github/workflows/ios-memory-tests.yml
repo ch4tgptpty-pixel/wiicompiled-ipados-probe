@@ -1,0 +1,32 @@
+name: iPadOS real memory backend
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  memory:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: patchzyy/Wiicompiled
+          ref: bd219e38a3e9a1a5047ce41d8cd01210bef3af43
+          path: upstream
+          persist-credentials: false
+      - name: Compile memory contract for physical iPad SDK
+        shell: bash
+        run: |
+          mkdir -p artifacts/logs
+          cp -R memory/runtime/tests/. upstream/runtime/tests/
+          sdk="$(xcrun --sdk iphoneos --show-sdk-path)"
+          xcrun --sdk iphoneos clang++ -target arm64-apple-ios16.0 -isysroot "$sdk" -std=c++17 -DMKW_IOS_MEMORY_TESTING -fsyntax-only -I upstream/runtime/include -I upstream/runtime/tests upstream/runtime/tests/ios_memory_tests.cpp 2>&1 | tee artifacts/logs/contract.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-memory-results
+          path: artifacts/
+          retention-days: 7
