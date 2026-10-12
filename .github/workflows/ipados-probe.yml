@@ -1,0 +1,34 @@
+name: iPadOS feasibility probe
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - name: Checkout diagnostic project
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout immutable upstream source
+        uses: actions/checkout@v4
+        with:
+          repository: patchzyy/Wiicompiled
+          ref: bd219e38a3e9a1a5047ce41d8cd01210bef3af43
+          path: upstream
+          persist-credentials: false
+      - name: Audit source and build unsigned diagnostic app
+        shell: bash
+        run: bash probe/build.sh
+      - name: Upload logs and diagnostic IPA if built
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipados-probe-results
+          path: |
+            artifacts/logs/
+            artifacts/WiiCompiledProbe-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
