@@ -1,0 +1,43 @@
+name: iPadOS graphics desktop regressions
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regressions:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: patchzyy/Wiicompiled
+          ref: bd219e38a3e9a1a5047ce41d8cd01210bef3af43
+          path: upstream
+          persist-credentials: false
+      - name: Runtime platform regression suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/logs
+          cp -R memory/runtime/. upstream/runtime/
+          cp -R graphics-overlay/aurora-main/. upstream/aurora-main/
+          cmake -S upstream/runtime -B build-macos -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="$(uname -m)" -DMKW_BUILD_PRODUCTS=OFF -DMKW_PLATFORM_TESTS_ONLY=ON -DMKW_BUILD_PSQ_TESTS=ON 2>&1 | tee artifacts/logs/platform-configure.txt
+          cmake --build build-macos -j 3 2>&1 | tee artifacts/logs/platform-build.txt
+          ctest --test-dir build-macos --output-on-failure 2>&1 | tee artifacts/logs/platform-tests.txt
+      - name: Aurora CPU regressions without GPU
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Prebuilt Dawn is used ONLY for native CPU-test headers; the IPA uses source-built Dawn.
+          cmake -S upstream/aurora-main -B build-aurora-tests -G Ninja -DCMAKE_BUILD_TYPE=Release -DAURORA_DAWN_PROVIDER=package -DAURORA_SDL3_PROVIDER=vendor -DAURORA_SDL3_SOURCE_REVISION=5848e584a1b606de26e3dbd1c7e4ecbc34f807a6 -DAURORA_ENABLE_CARD=OFF -DAURORA_ENABLE_DVD=OFF -DAURORA_CACHE_USE_ZSTD=OFF 2>&1 | tee artifacts/logs/aurora-configure.txt
+          cmake --build build-aurora-tests --target gx_fifo_tests os_alloc_tests -j 3 2>&1 | tee artifacts/logs/aurora-build.txt
+          ctest --test-dir build-aurora-tests --output-on-failure 2>&1 | tee artifacts/logs/aurora-tests.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-graphics-desktop-regressions
+          path: artifacts/logs/
+          retention-days: 7
