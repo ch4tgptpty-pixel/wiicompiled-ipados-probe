@@ -22,6 +22,15 @@ jobs:
           grep 'DrawProbeScene' artifacts/logs/scene-link-red.txt
           grep 'Undefined symbols' artifacts/logs/scene-link-red.txt
           echo 'Expected missing scene implementation: confirmed'
+      - name: Callback event tests require their adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://github.com/libsdl-org/SDL/archive/5848e584a1b606de26e3dbd1c7e4ecbc34f807a6.tar.gz | tar -xz
+          if clang++ -std=c++20 -ISDL-5848e584a1b606de26e3dbd1c7e4ecbc34f807a6/include graphics/callback-event-tests.cpp -o missing-adapter > artifacts/logs/callback-red.txt 2>&1; then
+            echo 'ERROR: callback adapter unexpectedly exists'; exit 1
+          fi
+          grep 'aurora/callback_sdl_events.hpp.*file not found' artifacts/logs/callback-red.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
