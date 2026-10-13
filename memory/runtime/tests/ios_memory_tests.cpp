@@ -28,10 +28,13 @@ std::vector<RegionRequest> WiiMap() {
       {0x81800000,0x00200000,Backing::Owned},{0xe0000000,0x00101000,Backing::Owned}};
 }
 void Mirrors(uint32_t physical, uint32_t cached, uint32_t uncached, uint32_t size) {
-    auto* p = GuestFlat::HostPointer(physical);
-    auto* c = GuestFlat::HostPointer(cached);
-    auto* u = GuestFlat::HostPointer(uncached);
-    auto* g = reinterpret_cast<uint8_t*>(GuestFlat::g_flatGuestBase);
+    // Kernel aliases share backing at distinct virtual addresses. Force real
+    // observations rather than letting C++ treat disjoint guest offsets as
+    // independent objects and reuse a pre-write value. Test instrumentation only.
+    volatile uint8_t* p = GuestFlat::HostPointer(physical);
+    volatile uint8_t* c = GuestFlat::HostPointer(cached);
+    volatile uint8_t* u = GuestFlat::HostPointer(uncached);
+    auto* g = reinterpret_cast<volatile uint8_t*>(GuestFlat::g_flatGuestBase);
     Check(p && c && u && g, "missing real Wii mapping");
     auto* gp=g+physical;
     auto* gc=g+cached;
