@@ -33,20 +33,28 @@ void Mirrors(uint32_t physical, uint32_t cached, uint32_t uncached, uint32_t siz
     auto* u = GuestFlat::HostPointer(uncached);
     auto* g = reinterpret_cast<uint8_t*>(GuestFlat::g_flatGuestBase);
     Check(p && c && u && g, "missing real Wii mapping");
+    auto* gp=g+physical;
+    auto* gc=g+cached;
+    auto* gu=g+uncached;
     const uint32_t page = static_cast<uint32_t>(getpagesize());
     // Different values per page catch wrong backing offsets, not merely map existence.
     for (uint32_t offset=0; offset<size; offset+=page) p[offset] = uint8_t((offset/page)%251+1);
     for (uint32_t offset=0; offset<size; offset+=page) {
         const uint8_t expected = uint8_t((offset/page)%251+1);
-        Check(c[offset]==expected && u[offset]==expected && g[cached+offset]==expected,
+        Check(c[offset]==expected && u[offset]==expected && gp[offset]==expected &&
+              gc[offset]==expected && gu[offset]==expected,
               "full-capacity alias coherence failed");
     }
     for (uint32_t offset : {0u,page-1,page,page+1,size-1}) {
-        u[offset]=0x5a;
-        Check(p[offset]==0x5a && c[offset]==0x5a && g[physical+offset]==0x5a,
-              "uncached write invisible through aliases");
-        g[cached+offset]=0xa5;
-        Check(p[offset]==0xa5 && u[offset]==0xa5, "guest write invisible through host aliases");
+        gp[offset]=0x31;
+        Check(gc[offset]==0x31 && gu[offset]==0x31 && p[offset]==0x31,
+              "physical guest write invisible through aliases");
+        gc[offset]=0x5a;
+        Check(gp[offset]==0x5a && gu[offset]==0x5a && u[offset]==0x5a,
+              "cached guest write invisible through aliases");
+        gu[offset]=0xa5;
+        Check(gp[offset]==0xa5 && gc[offset]==0xa5 && p[offset]==0xa5 && c[offset]==0xa5,
+              "uncached guest write invisible through aliases");
     }
     Check(GuestFlat::HostPointer(uncached+size)==nullptr, "alias accepted address beyond logical end");
 }

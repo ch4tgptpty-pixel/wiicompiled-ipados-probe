@@ -62,6 +62,8 @@ bool RunIosMemoryAccessTests(std::function<void(const std::string&)> report) {
         Expect(calls==11);
         Expect(PpcTryGetPsqReadableHostInline(address)==nullptr);
         Expect(PpcTryGetPsqWritableHostInline(address)==nullptr);
+        Expect(PpcTryGetPsqReadableHostInline(writeAddress)==nullptr);
+        Expect(PpcTryGetPsqWritableHostInline(writeAddress)==nullptr);
         // Proven-RAM stores must still use the dynamic base even in checked mode.
         auto* p=GuestFlat::HostPointer(0x80000040);
         Expect(p!=nullptr);
