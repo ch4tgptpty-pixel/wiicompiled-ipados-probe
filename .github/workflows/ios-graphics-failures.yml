@@ -1,0 +1,40 @@
+name: iPadOS graphics failure contracts
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  failures:
+    runs-on: macos-26
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: patchzyy/Wiicompiled
+          ref: bd219e38a3e9a1a5047ce41d8cd01210bef3af43
+          path: upstream
+          persist-credentials: false
+      - name: Actual Dawn errors and held GPU fence
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p artifacts/logs
+          cp -R graphics upstream/
+          cp -R graphics-overlay/aurora-main/. upstream/aurora-main/
+          cmake -S upstream/graphics/failure-tests -B build-failure-tests -G Ninja -DCMAKE_BUILD_TYPE=Debug 2>&1 | tee artifacts/logs/failure-configure.txt || exit 1
+          cmake --build build-failure-tests -j 3 2>&1 | tee artifacts/logs/failure-build.txt || exit 1
+          result=0
+          for case in error loss fence; do
+            build-failure-tests/graphics_failure_tests "$case" > "artifacts/logs/$case.txt" 2>&1 || result=1
+            cat "artifacts/logs/$case.txt"
+          done
+          exit "$result"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-graphics-failure-contracts
+          path: artifacts/logs/
+          retention-days: 7
