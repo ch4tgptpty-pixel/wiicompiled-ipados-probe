@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 project(WiiCompiledGraphicsTests LANGUAGES C CXX OBJC OBJCXX)
-if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS" OR NOT CMAKE_OSX_ARCHITECTURES STREQUAL "arm64" OR NOT CMAKE_OSX_SYSROOT MATCHES "iphoneos")
+string(TOLOWER "${CMAKE_OSX_SYSROOT}" probe_sysroot)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS" OR NOT CMAKE_OSX_ARCHITECTURES STREQUAL "arm64" OR NOT probe_sysroot MATCHES "iphoneos")
   message(FATAL_ERROR "Physical arm64 iphoneos SDK required")
 endif()
 set(CMAKE_CXX_STANDARD 20)
