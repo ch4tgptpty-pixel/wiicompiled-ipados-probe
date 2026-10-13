@@ -58,7 +58,7 @@ bool RunIosMemoryTests(std::function<void(const std::string&)> report) {
         Reject([] { GuestFlat::Initialize({}); }); Clean();
         Reject([] { GuestFlat::Initialize({{0,0,Backing::Mem1}}); }); Clean();
         Reject([] { GuestFlat::Initialize({{1,0x4000,Backing::Owned}}); }); Clean();
-        Reject([] { GuestFlat::Initialize({{0x10001000,0x4000,Backing::Mem2}}); }); Clean();
+        Reject([] { GuestFlat::Initialize({{0x80000000,0x4000,Backing::Mem2}}); }); Clean();
         Reject([] { GuestFlat::Initialize({{0,0x4001,Backing::Mem1},{0x4000,0x4000,Backing::Mem1}}); }); Clean();
         Reject([] { GuestFlat::Initialize({{0xffffc000,0x4001,Backing::Owned}}); }); Clean();
         report("Invalid layouts and rounded boundaries: PASS");
