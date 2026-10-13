@@ -1459,6 +1459,14 @@ bool begin_frame_impl(bool pumpEvents, ImGuiFramePolicy imguiPolicy, bool* imgui
 bool begin_frame_render_state_impl(ImGuiFramePolicy imguiPolicy, bool* imguiNewFrameOwed) noexcept {
 #ifdef AURORA_ENABLE_GX
   std::lock_guard gpuLock(g_rendererGpuMutex);
+#ifdef AURORA_SDL_CALLBACKS
+  // A pending staging map yields to UIKit. Do not leave an ImGui frame open
+  // across that retry: only begin UI work after graphics preparation succeeds.
+  return PrepareDiagnosticFrame([] { return gfx::begin_frame(); },[&] {
+    if(imguiPolicy==ImGuiFramePolicy::Immediate) imgui::new_frame(window::get_window_size());
+    else if(imguiNewFrameOwed) *imguiNewFrameOwed=true;
+  });
+#else
   // Note the debt before gfx::begin_frame() can fail: the synchronous path always started the
   // ImGui frame here, and the runtime's retry loop depends on that pairing.
   if (imguiPolicy == ImGuiFramePolicy::Immediate) {
@@ -1469,6 +1477,7 @@ bool begin_frame_render_state_impl(ImGuiFramePolicy imguiPolicy, bool* imguiNewF
   if (!gfx::begin_frame()) {
     return false;
   }
+#endif
 #else
   (void)imguiPolicy;
   (void)imguiNewFrameOwed;

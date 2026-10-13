@@ -10,8 +10,9 @@
 namespace aurora {
 template<class Prepare,class BeginUi>
 bool PrepareDiagnosticFrame(Prepare prepare,BeginUi beginUi) {
+  if(!prepare()) return false;
   beginUi();
-  return prepare();
+  return true;
 }
 // Stops this diagnostic's rendering while keeping the application loop alive.
 class DiagnosticGpuState {
