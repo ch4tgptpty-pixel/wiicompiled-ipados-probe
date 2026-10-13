@@ -31,8 +31,19 @@ jobs:
           cp -R graphics-overlay/aurora-main/. upstream/aurora-main/
           echo 'target_sources(gx_fifo_tests PRIVATE ../../graphics/scene.cpp ../../graphics/scene-state-tests.cpp)' >> upstream/aurora-main/tests/CMakeLists.txt
           cmake -S upstream/aurora-main -B build-scene-tests -G Ninja -DCMAKE_BUILD_TYPE=Release -DAURORA_DAWN_PROVIDER=package -DAURORA_SDL3_PROVIDER=vendor -DAURORA_SDL3_SOURCE_REVISION=5848e584a1b606de26e3dbd1c7e4ecbc34f807a6 -DAURORA_ENABLE_CARD=OFF -DAURORA_ENABLE_DVD=OFF -DAURORA_CACHE_USE_ZSTD=OFF 2>&1 | tee artifacts/logs/configure.txt
-          cmake --build build-scene-tests --target gx_fifo_tests -j 3 2>&1 | tee artifacts/logs/build.txt
-          build-scene-tests/tests/gx_fifo_tests --gtest_filter=GXFifoTest.ProbeScissorCoversRetinaSurfaceAfterRotation 2>&1 | tee artifacts/logs/scene-tests.txt
+          cp upstream/graphics/scene.cpp fixed-scene.cpp
+          git show eb1cd81876be24ca548fd7ece8ce715884aebcc1:graphics/scene.cpp > upstream/graphics/scene.cpp
+          cmake --build build-scene-tests --target gx_fifo_tests -j 3 2>&1 | tee artifacts/logs/red-build.txt
+          set +e
+          build-scene-tests/tests/gx_fifo_tests --gtest_filter=GXFifoTest.ProbeScissorCoversRetinaSurfaceAfterRotation 2>&1 | tee artifacts/logs/red-scene-tests.txt
+          red_status=${PIPESTATUS[0]}
+          set -e
+          test "$red_status" -eq 1
+          grep -q 'Which is: 112' artifacts/logs/red-scene-tests.txt
+          if grep -q 'unknown opcode\|Unknown Aurora subcommand' artifacts/logs/red-scene-tests.txt; then exit 1; fi
+          cp fixed-scene.cpp upstream/graphics/scene.cpp
+          cmake --build build-scene-tests --target gx_fifo_tests -j 3 2>&1 | tee artifacts/logs/green-build.txt
+          build-scene-tests/tests/gx_fifo_tests 2>&1 | tee artifacts/logs/green-scene-tests.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:

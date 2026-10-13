@@ -36,7 +36,7 @@ void reportFence(wgpu::QueueWorkDoneStatus status,wgpu::StringView message) {
   if(aurora::webgpu::diagnostic_gpu_state().Failed()) return;
   if(status==wgpu::QueueWorkDoneStatus::Success) {
     fenceCompleted=true;
-    ProbeStatusAppend("GPU: PASS (Dawn completo trabajo de una escena GX; confirmar triangulo visible).");
+    ProbeStatusAppend("Comandos GPU: PASS. Validacion visual pendiente: debe verse un triangulo multicolor girando.");
   } else {
     std::string line="GPU: FAIL "; line+=std::string(std::string_view(message));
     aurora::webgpu::diagnostic_gpu_state().Capture(line);
@@ -57,7 +57,7 @@ void preparationPending() {
 }
 SDL_AppResult SDL_AppInit(void**,int argc,char** argv) {
   documents=ProbeDocumentsPath(); cache=ProbeCachePath();
-  ProbeStatusAppend("Inicio de prueba grafica GX/Aurora/Dawn para iPadOS. No contiene el juego.");
+  ProbeStatusAppend("Prueba grafica v0.2 GX/Aurora/Dawn para iPadOS. Recorte Retina corregido. No contiene el juego.");
   SDL_SetHint(SDL_HINT_MAIN_CALLBACK_RATE,"60");
   AuroraConfig config{};
   config.appName="Wii GX Graphics";

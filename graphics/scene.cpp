@@ -10,7 +10,9 @@ void DrawProbeScene(uint32_t frameIndex, uint32_t width, uint32_t height) {
   if(width==0 || height==0) return;
   AuroraSetViewportPolicy(AURORA_VIEWPORT_NATIVE);
   GXSetViewport(0,0,float(width),float(height),0,1);
-  GXSetScissor(0,0,width,height);
+  // Physical Retina extents exceed the Wii BP scissor's 11-bit fields (+342).
+  // Aurora's render-space command preserves the full 32-bit native dimensions.
+  GXSetScissorRender(0,0,width,height);
   GXSetCopyClear(GXColor{12,18,38,255},GX_MAX_Z24);
   GXSetCullMode(GX_CULL_NONE);
   GXSetZMode(GX_FALSE,GX_ALWAYS,GX_FALSE);
