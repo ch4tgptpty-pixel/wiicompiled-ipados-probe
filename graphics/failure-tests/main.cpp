@@ -1,4 +1,5 @@
 #include <aurora/diagnostic_gpu_state.hpp>
+#include "gfx/staging_map.hpp"
 #include <cassert>
 #include <chrono>
 #include <thread>
@@ -7,6 +8,15 @@
 int main(int argc,char** argv) {
   assert(argc==2);
   aurora::DiagnosticGpuState state;
+  if(!std::strcmp(argv[1],"map")) {
+    aurora::gfx::StagingMapState mapping;
+    auto generation=mapping.request(); assert(generation!=0);
+    for(int i=0;i<1000;++i) assert(!aurora::gfx::callback_map_ready(mapping));
+    assert(mapping.complete(generation,aurora::gfx::BufferMapState::Mapped));
+    assert(aurora::gfx::callback_map_ready(mapping));
+    puts("Held staging mapping yields each callback and resumes when ready: PASS");
+    return 0;
+  }
   if(!std::strcmp(argv[1],"fence")) {
     state.StartFence(1000);
     // Submitted work remains pending: no new frame can enter the staging-map wait.

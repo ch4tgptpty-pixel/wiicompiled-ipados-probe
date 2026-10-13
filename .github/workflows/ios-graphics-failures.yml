@@ -26,12 +26,7 @@ jobs:
           cp -R graphics-overlay/aurora-main/. upstream/aurora-main/
           cmake -S upstream/graphics/failure-tests -B build-failure-tests -G Ninja -DCMAKE_BUILD_TYPE=Debug 2>&1 | tee artifacts/logs/failure-configure.txt || exit 1
           cmake --build build-failure-tests -j 3 2>&1 | tee artifacts/logs/failure-build.txt || exit 1
-          result=0
-          for case in error loss fence; do
-            build-failure-tests/graphics_failure_tests "$case" > "artifacts/logs/$case.txt" 2>&1 || result=1
-            cat "artifacts/logs/$case.txt"
-          done
-          exit "$result"
+          python3 graphics/failure-tests/run.py build-failure-tests/graphics_failure_tests
       - uses: actions/upload-artifact@v4
         if: always()
         with:
