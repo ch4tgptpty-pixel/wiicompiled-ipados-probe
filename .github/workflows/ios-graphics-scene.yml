@@ -1,0 +1,41 @@
+name: iPadOS Retina GX scene regression
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  scene:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: patchzyy/Wiicompiled
+          ref: bd219e38a3e9a1a5047ce41d8cd01210bef3af43
+          path: upstream
+          persist-credentials: false
+      - uses: actions/cache@v4
+        with:
+          path: build-scene-tests
+          key: scene-gx-macos26-arm64-dawn13abc3bc-sdl5848e584-${{ hashFiles('graphics/**', 'graphics-overlay/**') }}
+          restore-keys: scene-gx-macos26-arm64-dawn13abc3bc-sdl5848e584-
+      - name: Build and test actual scene through GX FIFO decoder
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/logs
+          cp -R graphics upstream/
+          cp -R graphics-overlay/aurora-main/. upstream/aurora-main/
+          echo 'target_sources(gx_fifo_tests PRIVATE ../../graphics/scene.cpp ../../graphics/scene-state-tests.cpp)' >> upstream/aurora-main/tests/CMakeLists.txt
+          cmake -S upstream/aurora-main -B build-scene-tests -G Ninja -DCMAKE_BUILD_TYPE=Release -DAURORA_DAWN_PROVIDER=package -DAURORA_SDL3_PROVIDER=vendor -DAURORA_SDL3_SOURCE_REVISION=5848e584a1b606de26e3dbd1c7e4ecbc34f807a6 -DAURORA_ENABLE_CARD=OFF -DAURORA_ENABLE_DVD=OFF -DAURORA_CACHE_USE_ZSTD=OFF 2>&1 | tee artifacts/logs/configure.txt
+          cmake --build build-scene-tests --target gx_fifo_tests -j 3 2>&1 | tee artifacts/logs/build.txt
+          build-scene-tests/tests/gx_fifo_tests --gtest_filter=GXFifoTest.ProbeScissorCoversRetinaSurfaceAfterRotation 2>&1 | tee artifacts/logs/scene-tests.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: retina-scene-results
+          path: artifacts/logs/
+          retention-days: 7
