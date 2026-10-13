@@ -1,7 +1,7 @@
 import subprocess,sys
 from pathlib import Path
 result=0
-for case in ('error','loss','fence','map'):
+for case in ('error','loss','fence','map','ui'):
     path=Path('artifacts/logs')/(case+'.txt')
     try:
         proc=subprocess.run([sys.argv[1],case],capture_output=True,text=True,timeout=2 if case=='map' else 10)

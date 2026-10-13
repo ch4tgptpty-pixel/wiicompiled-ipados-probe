@@ -8,6 +8,19 @@
 int main(int argc,char** argv) {
   assert(argc==2);
   aurora::DiagnosticGpuState state;
+  if(!std::strcmp(argv[1],"ui")) {
+    aurora::gfx::StagingMapState mapping;
+    auto generation=mapping.request();
+    int uiFrames=0;
+    auto prepare=[&]{return aurora::gfx::callback_map_ready(mapping);};
+    auto beginUi=[&]{++uiFrames;};
+    for(int i=0;i<1000;++i) assert(!aurora::PrepareDiagnosticFrame(prepare,beginUi));
+    assert(uiFrames==0);
+    assert(mapping.complete(generation,aurora::gfx::BufferMapState::Mapped));
+    assert(aurora::PrepareDiagnosticFrame(prepare,beginUi) && uiFrames==1);
+    puts("UI frame begins only after pending graphics preparation succeeds: PASS");
+    return 0;
+  }
   if(!std::strcmp(argv[1],"map")) {
     aurora::gfx::StagingMapState mapping;
     auto generation=mapping.request(); assert(generation!=0);
