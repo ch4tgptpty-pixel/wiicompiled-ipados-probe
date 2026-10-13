@@ -59,7 +59,6 @@ public:
 };
 
 inline bool callback_map_ready(StagingMapState& state) {
-  while(state.state()==BufferMapState::Mapping) state.wait_for_progress();
   return state.state()==BufferMapState::Mapped;
 }
 

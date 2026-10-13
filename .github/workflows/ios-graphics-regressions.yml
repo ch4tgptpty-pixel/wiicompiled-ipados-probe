@@ -33,7 +33,7 @@ jobs:
           set -euo pipefail
           # Prebuilt Dawn is used ONLY for native CPU-test headers; the IPA uses source-built Dawn.
           cmake -S upstream/aurora-main -B build-aurora-tests -G Ninja -DCMAKE_BUILD_TYPE=Release -DAURORA_DAWN_PROVIDER=package -DAURORA_SDL3_PROVIDER=vendor -DAURORA_SDL3_SOURCE_REVISION=5848e584a1b606de26e3dbd1c7e4ecbc34f807a6 -DAURORA_ENABLE_CARD=OFF -DAURORA_ENABLE_DVD=OFF -DAURORA_CACHE_USE_ZSTD=OFF 2>&1 | tee artifacts/logs/aurora-configure.txt
-          cmake --build build-aurora-tests --target gx_fifo_tests os_alloc_tests -j 3 2>&1 | tee artifacts/logs/aurora-build.txt
+          cmake --build build-aurora-tests --target gx_fifo_tests os_alloc_tests aurora_core aurora_gx -j 3 2>&1 | tee artifacts/logs/aurora-build.txt
           ctest --test-dir build-aurora-tests --output-on-failure 2>&1 | tee artifacts/logs/aurora-tests.txt
       - uses: actions/upload-artifact@v4
         if: always()

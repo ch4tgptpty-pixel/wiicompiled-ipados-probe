@@ -4,6 +4,7 @@
 #include <aurora/aurora.h>
 #include <aurora/event.h>
 #include <aurora/gfx.h>
+#include <aurora/diagnostic_gpu_state.hpp>
 #include "window.hpp"
 #include "webgpu/gpu.hpp"
 #include "scene.h"
@@ -18,9 +19,10 @@ namespace {
 AuroraInfo info{};
 std::string documents,cache;
 std::atomic_bool initialized=false;
-bool paused=false,failed=false;
-bool fencePending=false,fenceCompleted=false;
-Uint64 fenceStarted=0;
+bool paused=false;
+std::atomic_bool failed=false;
+bool fenceCompleted=false;
+Uint64 preparationStarted=0;
 uint32_t frameIndex=0;
 uint64_t fenceEpoch=0;
 void log(AuroraLogLevel level,const char* module,const char* text,unsigned length) {
@@ -30,15 +32,27 @@ void log(AuroraLogLevel level,const char* module,const char* text,unsigned lengt
   if(level==LOG_FATAL) std::abort();
 }
 void reportFence(wgpu::QueueWorkDoneStatus status,wgpu::StringView message) {
-  fencePending=false;
+  aurora::webgpu::diagnostic_gpu_state().FinishFence();
+  if(aurora::webgpu::diagnostic_gpu_state().Failed()) return;
   if(status==wgpu::QueueWorkDoneStatus::Success) {
     fenceCompleted=true;
     ProbeStatusAppend("GPU: PASS (Dawn completo trabajo de una escena GX; confirmar triangulo visible).");
   } else {
-    failed=true;
     std::string line="GPU: FAIL "; line+=std::string(std::string_view(message));
-    ProbeStatusAppend(line.c_str());
+    aurora::webgpu::diagnostic_gpu_state().Capture(line);
   }
+}
+bool showGpuFailure() {
+  const auto message=aurora::webgpu::diagnostic_gpu_state().Message();
+  if(message.empty()) return false;
+  if(!failed.exchange(true)) ProbeStatusAppend(("GPU: FAIL - "+message+". Reinicia la app.").c_str());
+  return true;
+}
+void preparationPending() {
+  const auto now=SDL_GetTicks();
+  if(!preparationStarted) preparationStarted=now;
+  if(now-preparationStarted>10000) aurora::webgpu::diagnostic_gpu_state().Capture("Preparacion grafica no termino en 10 segundos activos");
+  showGpuFailure();
 }
 }
 SDL_AppResult SDL_AppInit(void**,int argc,char** argv) {
@@ -65,44 +79,52 @@ SDL_AppResult SDL_AppInit(void**,int argc,char** argv) {
     return SDL_APP_CONTINUE;
   }
   initialized=true;
+  if(showGpuFailure()) return SDL_APP_CONTINUE;
+  // Shader compilation must not block UIKit; verify readiness before fencing
+  // a frame so a skipped first draw cannot be mistaken for scene completion.
+  aurora_set_skip_unready_pipelines(true);
   ProbeStatusAppend("Aurora/Dawn: Metal inicializado; GPU pendiente de completar escena.");
   return SDL_APP_CONTINUE;
 }
 SDL_AppResult SDL_AppEvent(void*,SDL_Event* event) {
   if(event->type==SDL_EVENT_QUIT) return SDL_APP_SUCCESS;
-  if(initialized) aurora::window::enqueue_callback_event(*event);
+  if(initialized && !failed) aurora::window::enqueue_callback_event(*event);
   return SDL_APP_CONTINUE;
 }
 SDL_AppResult SDL_AppIterate(void*) {
   if(!initialized || failed) return SDL_APP_CONTINUE;
+  if(showGpuFailure()) return SDL_APP_CONTINUE;
   for(const auto* event=aurora_update();event && event->type!=AURORA_NONE;++event) {
     switch(event->type) {
     case AURORA_EXIT: return SDL_APP_SUCCESS;
     case AURORA_PAUSED:
-      paused=true; ++fenceEpoch; fencePending=false; fenceCompleted=false;
+      paused=true; ++fenceEpoch; aurora::webgpu::diagnostic_gpu_state().ResetFence(); fenceCompleted=false; preparationStarted=0;
       ProbeStatusAppend("Ciclo de vida: pausado."); break;
     case AURORA_UNPAUSED:
-      paused=false; ++fenceEpoch; fencePending=false; fenceCompleted=false;
+      paused=false; ++fenceEpoch; aurora::webgpu::diagnostic_gpu_state().ResetFence(); fenceCompleted=false; preparationStarted=0;
       ProbeStatusAppend("Ciclo de vida: reanudado; verificar dibujo y nueva finalizacion GPU."); break;
     case AURORA_WINDOW_RESIZED: case AURORA_DISPLAY_SCALE_CHANGED:
       info.windowSize=event->windowSize;
+      ++fenceEpoch; aurora::webgpu::diagnostic_gpu_state().ResetFence(); fenceCompleted=false; preparationStarted=0;
       {char line[120]; std::snprintf(line,sizeof(line),"Superficie: %u x %u pixeles.",info.windowSize.native_fb_width,info.windowSize.native_fb_height); ProbeStatusAppend(line);}
       break;
     default: break;
     }
   }
   aurora::webgpu::g_instance.ProcessEvents();
-  if(fencePending && SDL_GetTicks()-fenceStarted>10000) {
-    failed=true; ProbeStatusAppend("GPU: FAIL (no completo el comando en 10 segundos activos).");
-  }
-  if(paused || failed) return SDL_APP_CONTINUE;
-  if(!aurora_begin_frame()) return SDL_APP_CONTINUE;
+  auto& gpuState=aurora::webgpu::diagnostic_gpu_state();
+  gpuState.PollTimeout(SDL_GetTicks());
+  if(showGpuFailure() || paused || !gpuState.CanRender()) return SDL_APP_CONTINUE;
+  const bool pipelinesReady=frameIndex>0 && aurora_get_queued_pipeline_count()==0;
+  if(frameIndex>0 && !pipelinesReady) { preparationPending(); return SDL_APP_CONTINUE; }
+  if(!aurora_begin_frame()) { preparationPending(); return SDL_APP_CONTINUE; }
+  preparationStarted=0;
   const auto dimensions=aurora::window::get_window_size();
+  const auto drawsBefore=gpuState.EncodedDraws();
   DrawProbeScene(frameIndex++,dimensions.fb_width,dimensions.fb_height);
   aurora_end_frame();
-  const auto* stats=aurora_get_stats();
-  if(!fencePending && !fenceCompleted && stats && stats->drawCallCount>0 && stats->createdPipelines>0) {
-    fencePending=true; fenceStarted=SDL_GetTicks();
+  if(!gpuState.Pending() && !fenceCompleted && gpuState.EncodedDraws()>drawsBefore && !gpuState.Failed()) {
+    gpuState.StartFence(SDL_GetTicks());
     const auto submittedEpoch=fenceEpoch;
     aurora::webgpu::g_queue.OnSubmittedWorkDone(wgpu::CallbackMode::AllowProcessEvents,
       [submittedEpoch](wgpu::QueueWorkDoneStatus status,wgpu::StringView message) {
@@ -113,5 +135,5 @@ SDL_AppResult SDL_AppIterate(void*) {
 }
 void SDL_AppQuit(void*,SDL_AppResult) {
   ProbeStatusAppend("Fin de diagnostico grafico.");
-  if(initialized) { initialized=false; aurora_shutdown(); }
+  if(initialized.exchange(false) && !failed) aurora_shutdown();
 }
