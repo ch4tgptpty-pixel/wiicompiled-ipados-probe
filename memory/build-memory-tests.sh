@@ -13,7 +13,15 @@ xcrun --sdk macosx clang++ -std=c++17 -O2 -DMKW_IOS_MEMORY_TESTING -DMKW_IOS_MEM
   upstream/runtime/src/guest_flat_memory_ios.cpp upstream/runtime/tests/ios_memory_tests.cpp \
   upstream/runtime/tests/ios_memory_access_tests.cpp upstream/runtime/tests/ios_memory_host_main.cpp \
   -o artifacts/memory-host-tests 2>&1 | tee artifacts/logs/host-build.txt
-artifacts/memory-host-tests 2>&1 | tee artifacts/logs/host-tests.txt
+if ! artifacts/memory-host-tests 2>&1 | tee artifacts/logs/host-tests.txt; then
+  xcrun --sdk macosx clang++ -std=c++17 -O0 -DMKW_IOS_MEMORY_TESTING -DMKW_IOS_MEMORY_HOST_TEST \
+    -I upstream/runtime/include -I upstream/runtime/tests \
+    upstream/runtime/src/guest_flat_memory_ios.cpp upstream/runtime/tests/ios_memory_tests.cpp \
+    upstream/runtime/tests/ios_memory_access_tests.cpp upstream/runtime/tests/ios_memory_host_main.cpp \
+    -o artifacts/memory-host-debug
+  artifacts/memory-host-debug 2>&1 | tee artifacts/logs/host-tests-debug.txt
+  exit 1
+fi
 bash memory/check-contracts.sh 2>&1 | tee artifacts/logs/contract-regressions.txt
 
 cmake -S upstream/runtime -B build-ios -G Xcode \
