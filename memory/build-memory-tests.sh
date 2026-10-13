@@ -14,6 +14,7 @@ xcrun --sdk macosx clang++ -std=c++17 -O2 -DMKW_IOS_MEMORY_TESTING -DMKW_IOS_MEM
   upstream/runtime/tests/ios_memory_access_tests.cpp upstream/runtime/tests/ios_memory_host_main.cpp \
   -o artifacts/memory-host-tests 2>&1 | tee artifacts/logs/host-build.txt
 artifacts/memory-host-tests 2>&1 | tee artifacts/logs/host-tests.txt
+bash memory/check-contracts.sh 2>&1 | tee artifacts/logs/contract-regressions.txt
 
 cmake -S upstream/runtime -B build-ios -G Xcode \
   -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64 \
