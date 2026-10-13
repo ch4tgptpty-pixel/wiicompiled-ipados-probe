@@ -1,0 +1,30 @@
+name: iPadOS GX scene link contract
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: macos-26
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Scene declaration requires its implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/logs
+          if xcrun --sdk iphoneos clang++ -arch arm64 -miphoneos-version-min=16.0 -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" -Igraphics graphics/scene-link-test.cpp -o missing-scene > artifacts/logs/scene-link-red.txt 2>&1; then
+            echo 'ERROR: missing scene unexpectedly linked'; exit 1
+          fi
+          grep 'DrawProbeScene' artifacts/logs/scene-link-red.txt
+          grep 'Undefined symbols' artifacts/logs/scene-link-red.txt
+          echo 'Expected missing scene implementation: confirmed'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-graphics-scene-link-contract
+          path: artifacts/logs/
+          retention-days: 7
