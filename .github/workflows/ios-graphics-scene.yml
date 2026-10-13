@@ -32,6 +32,7 @@ jobs:
           echo 'target_sources(gx_fifo_tests PRIVATE ../../graphics/scene.cpp ../../graphics/scene-state-tests.cpp)' >> upstream/aurora-main/tests/CMakeLists.txt
           cmake -S upstream/aurora-main -B build-scene-tests -G Ninja -DCMAKE_BUILD_TYPE=Release -DAURORA_DAWN_PROVIDER=package -DAURORA_SDL3_PROVIDER=vendor -DAURORA_SDL3_SOURCE_REVISION=5848e584a1b606de26e3dbd1c7e4ecbc34f807a6 -DAURORA_ENABLE_CARD=OFF -DAURORA_ENABLE_DVD=OFF -DAURORA_CACHE_USE_ZSTD=OFF 2>&1 | tee artifacts/logs/configure.txt
           cp upstream/graphics/scene.cpp fixed-scene.cpp
+          git fetch --depth=1 origin eb1cd81876be24ca548fd7ece8ce715884aebcc1
           git show eb1cd81876be24ca548fd7ece8ce715884aebcc1:graphics/scene.cpp > upstream/graphics/scene.cpp
           cmake --build build-scene-tests --target gx_fifo_tests -j 3 2>&1 | tee artifacts/logs/red-build.txt
           set +e
