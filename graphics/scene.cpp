@@ -24,7 +24,7 @@ void DrawProbeScene(uint32_t frameIndex, uint32_t width, uint32_t height) {
   const float aspect=float(height)/float(width);
   const float projection[7]={1,aspect,0,1,0,0,-0.5f};
   GXSetProjectionv(projection);
-  Mtx identity={{1,0,0,0},{0,1,0,0},{0,0,1,0}};
+  float identity[3][4]={{1,0,0,0},{0,1,0,0},{0,0,1,0}};
   GXLoadPosMtxImm(identity,GX_PNMTX0); GXSetCurrentMtx(GX_PNMTX0);
   GXClearVtxDesc();
   GXSetVtxDesc(GX_VA_POS,GX_DIRECT); GXSetVtxDesc(GX_VA_CLR0,GX_DIRECT);
